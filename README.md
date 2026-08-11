@@ -1,6 +1,6 @@
 # GridShare
 
-GridShare is a React single-page application built with Vite, styled with Tailwind CSS, and routed with React Router. This README covers everything needed to set up, develop, build, and deploy the project.
+GridShare is a React single-page application built with Vite, styled with Tailwind CSS, and routed with React Router. It also includes an **AI-powered energy demand prediction** feature, served by a separate Python backend API, which the frontend consumes to forecast grid/energy usage. This README covers everything needed to set up, develop, build, and deploy the full project (frontend + prediction backend).
 
 ---
 
@@ -14,6 +14,7 @@ GridShare is a React single-page application built with Vite, styled with Tailwi
   - [Environment Variables](#environment-variables)
 - [Available Scripts](#available-scripts)
 - [Development](#development)
+- [AI Prediction Backend](#ai-prediction-backend)
 - [Linting](#linting)
 - [Building for Production](#building-for-production)
 - [Previewing a Production Build](#previewing-a-production-build)
@@ -26,16 +27,18 @@ GridShare is a React single-page application built with Vite, styled with Tailwi
 
 ## Tech Stack
 
-| Category        | Technology                              |
-|------------------|------------------------------------------|
-| UI Library       | [React 19](https://react.dev/)           |
-| Build Tool       | [Vite 7](https://vite.dev/)              |
-| Routing          | [React Router 6](https://reactrouter.com/) |
-| Styling          | [Tailwind CSS](https://tailwindcss.com/) (via `@tailwindcss/vite`) |
-| Linting          | [ESLint 9](https://eslint.org/) with flat config, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh` |
-| Language         | JavaScript (JSX)                         |
+| Category           | Technology                              |
+|---------------------|------------------------------------------|
+| UI Library          | [React 19](https://react.dev/)           |
+| Build Tool          | [Vite 7](https://vite.dev/)              |
+| Routing             | [React Router 6](https://reactrouter.com/) |
+| Styling             | [Tailwind CSS](https://tailwindcss.com/) (via `@tailwindcss/vite`) |
+| Linting             | [ESLint 9](https://eslint.org/) with flat config, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh` |
+| Language (Frontend) | JavaScript (JSX)                         |
+| AI Prediction API   | Python ([Flask](https://flask.palletsprojects.com/) or [FastAPI](https://fastapi.tiangolo.com/)) |
+| ML / Forecasting    | e.g. scikit-learn, pandas, numpy (model of choice) |
 
-This project uses Vite's official React plugin (`@vitejs/plugin-react`) for Fast Refresh during development, powered by Babel.
+This project uses Vite's official React plugin (`@vitejs/plugin-react`) for Fast Refresh during development, powered by Babel. The AI prediction feature runs as a standalone backend service that exposes a REST API consumed by the React frontend.
 
 ---
 
@@ -43,13 +46,18 @@ This project uses Vite's official React plugin (`@vitejs/plugin-react`) for Fast
 
 ```
 gridshare-react/
-├── public/                 # Static assets served as-is
+├── public/                    # Static assets served as-is
 ├── src/
-│   ├── main.jsx             # Application entry point
-│   └── ...                  # Components, pages, routes, styles
-├── index.html                # HTML entry point (mounts #root)
-├── vite.config.js            # Vite configuration (React + Tailwind plugins)
-├── eslint.config.js           # Flat ESLint configuration
+│   ├── main.jsx                # Application entry point
+│   └── ...                     # Components, pages, routes, styles
+├── backend/                    # AI prediction backend (Flask/FastAPI)
+│   ├── app.py                   # API entry point
+│   ├── model/                   # Trained model artifacts / training scripts
+│   ├── requirements.txt         # Python dependencies
+│   └── ...
+├── index.html                  # HTML entry point (mounts #root)
+├── vite.config.js               # Vite configuration (React + Tailwind plugins)
+├── eslint.config.js              # Flat ESLint configuration
 ├── package.json
 └── README.md
 ```
@@ -62,15 +70,26 @@ gridshare-react/
 
 - [Node.js](https://nodejs.org/) v18 or later (v20+ recommended)
 - npm (bundled with Node.js), or an alternative package manager such as pnpm or yarn
+- [Python](https://www.python.org/) 3.9+ (for the AI prediction backend)
+- pip (or a virtual environment tool such as `venv` or `conda`)
 
 ### Installation
 
-Clone the repository and install dependencies:
+Clone the repository and install frontend dependencies:
 
 ```bash
 git clone <repository-url>
 cd gridshare-react
 npm install
+```
+
+Set up the AI prediction backend:
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate   # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
 ### Environment Variables
@@ -79,9 +98,12 @@ If the project requires environment-specific configuration, create a `.env` file
 
 ```bash
 VITE_API_BASE_URL=https://api.example.com
+VITE_PREDICTION_API_URL=http://localhost:8000
 ```
 
-Access these in code via `import.meta.env.VITE_API_BASE_URL`.
+Access these in code via `import.meta.env.VITE_API_BASE_URL` and `import.meta.env.VITE_PREDICTION_API_URL`.
+
+The backend may also require its own `.env` (e.g. for model paths, ports, or database credentials) — create `backend/.env` as needed.
 
 ---
 
@@ -94,17 +116,64 @@ Access these in code via `import.meta.env.VITE_API_BASE_URL`.
 | `npm run lint`     | Runs ESLint across the project                   |
 | `npm run preview`  | Serves the production build locally for testing  |
 
+Backend (run from `backend/`, with the virtual environment activated):
+
+| Command                                   | Description                                  |
+|---------------------------------------------|-----------------------------------------------|
+| `python app.py`                              | Starts the prediction API (Flask, dev mode)   |
+| `uvicorn app:app --reload`                   | Starts the prediction API (FastAPI, dev mode) |
+
 ---
 
 ## Development
 
-Start the local dev server:
+Start the local frontend dev server:
 
 ```bash
 npm run dev
 ```
 
 By default, Vite serves the app at `http://localhost:5173`. The dev server supports Hot Module Replacement (HMR), so changes to components are reflected instantly without a full page reload.
+
+In a separate terminal, start the AI prediction backend:
+
+```bash
+cd backend
+source venv/bin/activate
+python app.py        # or: uvicorn app:app --reload
+```
+
+By default, the backend runs at `http://localhost:8000` (adjust to match your setup). Make sure `VITE_PREDICTION_API_URL` in your `.env` points to this address so the frontend can reach it.
+
+---
+
+## AI Prediction Backend
+
+The prediction service is a standalone Python API (Flask or FastAPI) responsible for forecasting energy/grid demand based on historical or real-time input data.
+
+**Typical responsibilities:**
+- Load a trained forecasting model (e.g. regression, time-series, or ML model) from `backend/model/`
+- Expose a REST endpoint (e.g. `POST /predict`) that accepts input features (such as time, past usage, weather data) and returns a predicted demand value
+- Optionally expose a `/health` endpoint for uptime checks
+
+**Example request/response:**
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"timestamp": "2026-08-11T14:00:00", "past_usage": [120, 125, 130]}'
+```
+
+```json
+{
+  "predicted_demand": 132.4,
+  "unit": "kWh"
+}
+```
+
+The React frontend calls this endpoint (via `VITE_PREDICTION_API_URL`) to display predicted usage/demand in the UI, typically through a chart or dashboard component.
+
+> **Note:** Update the endpoint paths, request/response schema, and model details above to match your actual implementation.
 
 ---
 
@@ -137,6 +206,8 @@ npm run build
 
 The output is written to the `dist/` directory, ready to be deployed to any static hosting provider (Vercel, Netlify, GitHub Pages, S3/CloudFront, etc.).
 
+For the AI prediction backend, deploy it separately as a Python web service (e.g. on Render, Railway, AWS, or a container platform), and point `VITE_PREDICTION_API_URL` in your production `.env` to the deployed backend URL.
+
 ---
 
 ## Previewing a Production Build
@@ -148,13 +219,13 @@ npm run build
 npm run preview
 ```
 
-This serves the contents of `dist/` on a local server, closely mimicking production behavior.
+This serves the contents of `dist/` on a local server, closely mimicking production behavior. Ensure the prediction backend is also running (locally or remotely) so prediction-dependent features work correctly.
 
 ---
 
 ## Routing
 
-Client-side routing is handled by `react-router-dom`. Routes are typically defined in `src/main.jsx` or a dedicated router file using `<BrowserRouter>`, `<Routes>`, and `<Route>` components. Update or add routes there as new pages are introduced.
+Client-side routing is handled by `react-router-dom`. Routes are typically defined in `src/main.jsx` or a dedicated router file using `<BrowserRouter>`, `<Routes>`, and `<Route>` components. Update or add routes there as new pages are introduced (e.g. a `/predictions` or `/dashboard` route for the AI forecasting view).
 
 ---
 
@@ -174,7 +245,8 @@ Styling is handled with **Tailwind CSS**, integrated directly through the `@tail
    ```bash
    npm run lint
    ```
-3. Commit your changes with a clear message and open a pull request.
+3. If working on the backend, ensure it runs cleanly and any new dependencies are added to `backend/requirements.txt`.
+4. Commit your changes with a clear message and open a pull request.
 
 ---
 
